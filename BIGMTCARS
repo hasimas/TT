@@ -1,0 +1,101 @@
+---
+title: "BIGMTCARS"
+author: "Hasyim"
+date: "10/16/2019"
+output: html_document
+---
+
+```{r Library, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readr)
+library(ggthemes)
+```
+
+```{r Data Setup, warning=FALSE, message=FALSE}
+
+big_epa_cars <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv")
+
+luxury_cars <- big_epa_cars %>%
+  select(make, year, co2, city08, highway08, fuelCost08) %>%
+  mutate(mpg = city08 * .55 + highway08 * .45) %>%
+  filter(year >= 2010 , co2 != -1,
+         make == c("Ferrari", "Lamborghini", "Jaguar", "Mercedes-Benz", "Aston Martin",
+                                "Porsche", "BMW", "Audi", "Rolls-Royce", "Lexus"))
+  
+luxury_cars <- luxury_cars %>% 
+  mutate(yearss = if_else(year >= 2016, "1", "0"))
+
+luxy2015 <- luxury_cars %>%
+  filter(year >= 2015) %>%
+  group_by(make) %>%
+  summarise(avgco2 = mean(co2),
+            avgmpg = mean(mpg),
+            avgfuelcost = mean(fuelCost08)) %>% arrange()
+
+luxy2010 <- luxury_cars %>%
+  filter(year >= 2010, year < 2016) %>%
+  group_by(make) %>%
+  summarise(avgco2 = mean(co2),
+            avgmpg = mean(mpg),
+            avgfuelcost = mean(fuelCost08)) %>% arrange()
+```
+
+```{r Data Visualization 1, warning=FALSE, message=FALSE}
+luxy2015 %>%
+  ggplot(aes(fct_reorder(make, avgfuelcost), avgfuelcost)) +
+  geom_point(aes(size = avgmpg, color = avgco2)) +
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Annual Fuel Cost (USD)") +
+  ggtitle("Luxuriosity & Environment", subtitle = "Average Numbers from Top 10 Luxury Car Brands (2015-2020)") +
+  labs(size = "Average Miles per Gallon", 
+       color = "Average CO2 Emissions\n(grams/mile)",
+       caption = "Source: U.S. Environmental Protection Agency") +
+  scale_size_continuous(breaks = c(15,20,25)) +
+  scale_color_continuous(breaks = c(400,500,600), low = "green", high = "red")+
+  theme_clean()
+
+ggsave("15.png", path = "~/Desktop", width = 20, height = 15, units = "cm")
+```
+
+```{r Data Visualization 2, warning=FALSE, message=FALSE}
+luxy2010 %>%
+  ggplot(aes(fct_reorder(make, avgfuelcost), avgfuelcost)) +
+  geom_point(aes(size = avgmpg, color = avgco2)) +
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Annual Fuel Cost (USD)") +
+  ggtitle("Luxuriosity & Environment", subtitle = "Average Numbers from Top 10 Luxury Car Brands (2010-2015)") +
+  labs(size = "Average Miles per Gallon", 
+       color = "Average CO2 Emissions\n(grams/mile)",
+       caption = "Source: U.S. Environmental Protection Agency") +
+  scale_color_continuous(breaks = c(450,550,650), low = "green", high = "red") +
+  scale_size_continuous(breaks = c(15,20,25)) +
+  theme_clean() +
+  guides(size = guide_legend(order = 1),
+         colour = guide_colorbar(order = 2))
+
+ggsave("10.png", path = "~/Desktop", width = 20, height = 15, units = "cm")
+```
+
+```{r Data Visualization 3, warning=FALSE, message=FALSE}
+label_names <- c(`0` = "Luxury Cars Emissions Year 2013-2016",
+                 `1` = "Luxury Cars Emissions Year 2017-2020")
+
+luxury_cars %>%
+  ggplot(aes(x = co2)) +
+  geom_histogram(colour="black", fill="white") +
+  facet_wrap(.~yearss, nrow =2, ncol =1, labeller = as_labeller(label_names)) +
+  geom_vline(data=filter(luxury_cars, yearss == 0), 
+             aes(xintercept=mean(co2)),color="red", linetype="dashed", size=0.5) +
+  geom_vline(data=filter(luxury_cars, yearss == 1), 
+             aes(xintercept=mean(co2)),color="red", linetype="dashed", size=0.5) +
+  labs(
+    x = "Average CO2 Emissions\n(grams/mile)",
+    y = "Count"
+  ) +
+  xlim(100,600) +
+  theme_stata()
+
+ggsave("Avg.png", path = "~/Desktop", width = 20, height = 10, units = "cm")
+```
